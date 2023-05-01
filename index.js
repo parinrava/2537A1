@@ -53,6 +53,12 @@ app.get('/img/:id', (req,res) => {
 
 app.use(express.static(__dirname + "/public"));
 
+//catches all the invalid pages and send status code
+app.get("*", (req,res) => {
+	res.status(404);
+	res.send("Page not found - 404");
+})
+
 app.listen(port, () => {
 	console.log("Node application listening on port "+port);
 }); 
