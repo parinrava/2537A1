@@ -1,56 +1,244 @@
+require("./utils.js");
+require('dotenv').config();
 const express = require('express');
-
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const port = process.env.PORT || 3000;
-
 const app = express();
 
-app.get('/', (req,res) => {
-    res.send("<button> Login </button> <button> signup </button>");
+const Joi = require("joi");
+const expireTime =  60 * 60 * 1000; //expires after 1 day  (hours * minutes * seconds * millis)
+
+const bcrypt = require('bcrypt');
+const saltRounds = 12;
+
+
+/* secret information section */
+const mongodb_host = process.env.MONGODB_HOST;
+const mongodb_user = process.env.MONGODB_USER;
+const mongodb_password = process.env.MONGODB_PASSWORD;
+const mongodb_database = process.env.MONGODB_DATABASE;
+const mongodb_session_secret = process.env.MONGODB_SESSION_SECRET; // generated my own guid 
+
+const node_session_secret = process.env.NODE_SESSION_SECRET; // generated my own guid 
+/* END secret section */
+
+var {database} = include('databaseConnection');
+
+const userCollection = database.db(mongodb_database).collection('users');
+
+app.use(express.urlencoded({extended: false}));
+
+var mongoStore = MongoStore.create({
+	mongoUrl: `mongodb+srv://parinrava:12w34r56@cluster0.a0i4o8k.mongodb.net/2537Assign1?retryWrites=true&w=majority `, // keep eye on this
+	crypto: {
+		secret: mongodb_session_secret
+	}
+})
+
+app.use(session({ 
+    secret: node_session_secret,
+	store: mongoStore, //default is memory store 
+	saveUninitialized: false, 
+	resave: true
+}
+));
+
+app.get('/', (req, res) => {
+    
+      var html = `
+        <h1>Welcome to my site</h1>
+        <p>Please sign up or log in</p>
+        <ul>
+          <li><a href="/signup">Sign up</a></li>
+          <li><a href="/login">Log in</a></li>
+        </ul>
+      `;
+      res.send(html);
+    }
+  );
+
+  app.get('/nosql-injection', async (req,res) => {
+    var username = req.query.user;
+
+    if (!username) {
+        res.send(`<h3>no user provided - try /nosql-injection?user=name</h3> <h3>or /nosql-injection?user[$ne]=name</h3>`);
+        return;
+    }
+    console.log("user: "+username);
+
+    const schema = Joi.string().max(20).required();
+    const validationResult = schema.validate(username);
+
+    if (validationResult.error != null) {  
+        console.log(validationResult.error);
+        res.send("<h1 style='color:darkred;'>A NoSQL injection attack was detected!!</h1>");
+        return;
+    }   
+
+    const result = await userCollection.find({name: username}).project({name: 1, password: 1, email: 1, _id: 0}).toArray();
+
+    console.log(result);
+
+    res.send(`<h1>Hello ${username}</h1>`);
 });
+  
 
 app.get('/signup', (req,res) => {
-    var color = req.query.color;
+    var missingEmail = req.query.missingEmail;
+    var missingPassword = req.query.missingPassword;
+    var missingName = req.query.missingName;
+    var html = `
+        create user:
+        <form action='/submitUser' method='post'>
+            <input name='email' type='text' placeholder='email'>
+            <input name='name' type='text' placeholder='name'>
+            <input name='password' type='password' placeholder='password'>
+            <button>Submit</button>
+        </form>
+    `;
+    if (missingEmail) {
+        html += "<br> email is required";
+    }
+    else if (missingPassword) {
+        html += "<br> password is required";
+    }
+    else if (missingName) {
+        html += "<br> name is required";
+    }
+    else res.send(html);
+});
 
-    res.send("<h1 style='color:"+color+";'>Patrick Guichon</h1>");
+
+//this web page shows the information that user send when they were signing up 
+//NEEDS TO BE CHANGES JUST HERE FOR THE SAKE OF DEMO
+app.post('/submitUser', async(req,res) => {
+    var name = req.body.name;
+    var password = req.body.password;
+    var email = req.body.email;
+       
+    if (!name) {
+                res.redirect('/signup?missing=name');
+                
+            } else if (!email) {
+                res.redirect('/signup?missing=email');
+              
+            } else if (!password) {
+                res.redirect('/signup?missing=password');
+            } else {
+    const schema = Joi.object(
+		{
+			email: Joi.string().email().required(),
+            name: Joi.string().alphanum().max(20).required(),
+			password: Joi.string().max(20).required()
+		});
+
+	const validationResult = schema.validate({name, email, password});
+	if (validationResult.error != null) {
+	   console.log(validationResult.error);
+	   res.redirect("/loginSubmit");
+	   return;
+   }
+
+    var hashedPassword = await bcrypt.hash(password, saltRounds);
+
+	await userCollection.insertOne({name: name, email: email, password: hashedPassword});
+	console.log("Inserted user");
+
+    var html = "successfully created user";
+    res.send(html);
+}
 });
 
 app.get('/login', (req,res) => {
-    var color = req.query.color;
+    var html = `
+    Login:
+    <form action='/logingin' method='post'>
+        <input name='email' type='text' placeholder='email'>
+        <input name='password' type='password' placeholder='password'>
+        <button>login</button>
+    </form>
+`;
 
-    res.send("<h1 style='color:"+color+";'>Patrick Guichon</h1>");
+    res.send(html);
 });
+
+app.post('/logingin', async(req,res) => {
+    var password = req.body.password;
+    var email = req.body.email;
+    console.log(email);
+    console.log(password);
+
+    //var name = reg.body.name;
+    const schema = Joi.string().max(20).required();
+	const validationResult = schema.validate(email);
+	if (validationResult.error != null) {
+	   console.log(validationResult.error);
+	   res.redirect("/login");
+	   return; }
+
+       const result = await userCollection.find({email: email}).project({ password: 1, email: 1, name: 1, _id: 0}).toArray();
+   
+    //user and password combination not found
+    console.log(result);
+	if (result.length != 1) {
+		console.log("user not found");
+		res.redirect("/loginSubmit");
+		return;
+	}
+	if (await bcrypt.compare(password, result[0].password)) {
+		console.log("correct password");
+		req.session.authenticated = true;
+		req.session.email = email;
+        req.session.name = result[0].name; // add this line to store the user's name
+		req.session.cookie.maxAge = expireTime;
+
+		res.redirect('/members');
+		return;
+	}
+	else {
+		console.log("incorrect password");
+		res.redirect("/loginSubmit");
+		return;
+	}
+});
+
+//user and password combination not found page
+app.get('/loginSubmit', (req,res) => {
+    var html = "<h1>invalid email/password combination!</h1>";
+  html += "<br><a href='/login'>Try again</a>";
+  res.send(html);
+});
+
+
 
 app.get('/members', (req,res) => {
-    var color = req.query.color;
-
-    res.send("<h1 style='color:"+color+";'>Patrick Guichon</h1>");
+    if (!req.session.authenticated) {
+        res.redirect('/login');
+    }
+    var memeId = Math.floor(Math.random() * 3) + 1; // generate a random number between 1 and 3
+    var memeUrl = `/${memeId}.jpg`;
+    var name = req.session.name;
+    console.log(req.session.name);
+    var html = `
+        <h1>Hello, ${name}</h1>
+        <p>Here's your meme for the day:</p>
+        <img src="${memeUrl}" style="width:250px;">
+        <form action="/logout" method="POST">
+            <button type="submit">Logout</button>
+        </form>
+    `;
+    res.send(html);
 });
 
-app.get('/logout', (req,res) => {
-    var color = req.query.color;
-
-    res.send("<h1 style='color:"+color+";'>Patrick Guichon</h1>");
+app.post('/logout', (req,res) => {
+	req.session.destroy();
+    // var html = `
+    // You are logged out.
+    // `;
+    // res.send(html);
+    res.redirect('/login');
 });
-
-//this code needs to be changed in a way that display the pics in members page
-app.get('/img/:id', (req,res) => {
-
-    var meme = req.params.id;
-
-    if (meme == 1) {
-        res.send("serious: <img src='/serious.jpg' style='width:250px;'>");
-    }
-    else if (meme == 2) {
-        res.send("confused: <img src='/confused.jpg' style='width:250px;'>");
-    }
-    else if (meme == 3) {
-        res.send("happy: <img src='/trump.jpg' style='width:250px;'>");
-    }
-    else {
-        res.send("Invalid meme id: "+meme);
-    }
-});
-
 app.use(express.static(__dirname + "/public"));
 
 //catches all the invalid pages and send status code
