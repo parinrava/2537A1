@@ -30,7 +30,7 @@ const userCollection = database.db(mongodb_database).collection('users');
 app.use(express.urlencoded({extended: false}));
 
 var mongoStore = MongoStore.create({
-	mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/sessions`, // keep eye on this
+	mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/2537Assign1`, // keep eye on this
 	crypto: {
 		secret: mongodb_session_secret
 	}
@@ -106,7 +106,7 @@ app.get('/signup', (req,res) => {
     else if (missingName) {
         html += "<br> name is required";
     }
-    else res.send(html);
+    else  res.redirect('/members');
 });
 
 
