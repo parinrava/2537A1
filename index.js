@@ -23,7 +23,7 @@ const mongodb_session_secret = process.env.MONGODB_SESSION_SECRET; // generated 
 const node_session_secret = process.env.NODE_SESSION_SECRET; // generated my own guid 
 /* END secret section */
 
-var {database} = include('dbConnection');
+var {database} = include('databaseconnection');
 
 const userCollection = database.db(mongodb_database).collection('users');
 
