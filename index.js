@@ -85,9 +85,6 @@ app.get('/', (req, res) => {
   
 
 app.get('/signup', (req,res) => {
-    var missingEmail = req.query.missingEmail;
-    var missingPassword = req.query.missingPassword;
-    var missingName = req.query.missingName;
     var html = `
         create user:
         <form action='/submitUser' method='post'>
@@ -97,56 +94,47 @@ app.get('/signup', (req,res) => {
             <button>Submit</button>
         </form>
     `;
-    if (missingEmail) {
-        html += "<br> email is required";
-    }
-    else if (missingPassword) {
-        html += "<br> password is required";
-    }
-    else if (missingName) {
-        html += "<br> name is required";
-    }
-    else res.send(html);
+    res.send(html);
 });
 
-
-//this web page shows the information that user send when they were signing up 
-//NEEDS TO BE CHANGES JUST HERE FOR THE SAKE OF DEMO
-app.post('/submitUser', async(req,res) => {
+app.post('/submitUser', async (req, res) => {
     var name = req.body.name;
     var password = req.body.password;
     var email = req.body.email;
 
-    const schema = Joi.object({
-        email: Joi.string().email().required(),
-        name: Joi.string().alphanum().max(20).required(),
-        password: Joi.string().max(20).required()
-    });
+    if (!name || !email || !password) {
+        var missingFields = [];
+        if (!name) missingFields.push("name");
+        if (!email) missingFields.push("email");
+        if (!password) missingFields.push("password");
 
-    const validationResult = schema.validate({name, email, password});
+        var htmlText = "<h1>The following fields are missing:</h1><br>";
+        missingFields.forEach(field => {
+            htmlText += "- " + field + "<br>";
+        });
+        htmlText += "<br><a href='/signup'>Try again</a>";
+        res.send(htmlText);
+    } else {
+        const schema = Joi.object({
+            email: Joi.string().email().required(),
+            name: Joi.string().alphanum().max(20).required(),
+            password: Joi.string().max(20).required()
+        });
 
-    if (validationResult.error != null) {
-        const errorMessage = validationResult.error.details[0].message;
-        res.render('signup', { errorMessage });
-        return;
+        const validationResult = schema.validate({name, email, password});
+        if (validationResult.error != null) {
+            console.log(validationResult.error);
+            res.redirect("/loginSubmit");
+            return;
+        } else {
+            var hashedPassword = await bcrypt.hash(password, saltRounds);
+
+            await userCollection.insertOne({name: name, email: email, password: hashedPassword});
+            console.log("Inserted user");
+
+            res.redirect("/members");
+        }
     }
-
-    // Check if user already exists in the database
-    const userExists = await userCollection.findOne({ email });
-
-    if (userExists) {
-        const errorMessage = 'User with this email already exists.';
-        res.render('signup', { errorMessage });
-        return;
-    }
-
-    // Hash the password and insert the new user into the database
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    await userCollection.insertOne({ name, email, password: hashedPassword });
-    console.log("Inserted user");
-
-    res.redirect("/members");
 });
 
 
