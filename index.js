@@ -134,7 +134,7 @@ app.post('/submitUser', async(req,res) => {
                 var htmlText = '<h1>password is missing</h1>';
         htmlText += "<br><a href='/signup'>Try again</a>";      
            res.send(htmlText);
-           
+
             } else {
     const schema = Joi.object(
 		{
@@ -148,17 +148,15 @@ app.post('/submitUser', async(req,res) => {
 	   console.log(validationResult.error);
 	   res.redirect("/loginSubmit");
 	   return;
-   }
+   }else{
 
     var hashedPassword = await bcrypt.hash(password, saltRounds);
 
 	await userCollection.insertOne({name: name, email: email, password: hashedPassword});
 	console.log("Inserted user");
 
-    // var html = "successfully created user";
-    // res.send(html);
     res.redirect("/members");
-}
+}}
 });
 
 app.get('/login', (req,res) => {
