@@ -116,48 +116,39 @@ app.post('/submitUser', async(req,res) => {
     var name = req.body.name;
     var password = req.body.password;
     var email = req.body.email;
-       
-    if (!name) {
-        var htmlText = '<h1>name is missing</h1>';
-        htmlText += "<br><a href='/signup'>Try again</a>";
-       
-        // res.setHeader('Content-Type', 'text/html');
-           res.send(htmlText);
-                
-            } else if (!email) {
-                var htmlText = '<h1>email is missing</h1>';
-        htmlText += "<br><a href='/signup'>Try again</a>";
-       
-           res.send(htmlText);
-              
-            } else if (!password) {
-                var htmlText = '<h1>password is missing</h1>';
-        htmlText += "<br><a href='/signup'>Try again</a>";      
-           res.send(htmlText);
 
-            } else {
-    const schema = Joi.object(
-		{
-			email: Joi.string().email().required(),
-            name: Joi.string().alphanum().max(20).required(),
-			password: Joi.string().max(20).required()
-		});
+    const schema = Joi.object({
+        email: Joi.string().email().required(),
+        name: Joi.string().alphanum().max(20).required(),
+        password: Joi.string().max(20).required()
+    });
 
-	const validationResult = schema.validate({name, email, password});
-	if (validationResult.error != null) {
-	   console.log(validationResult.error);
-	   res.redirect("/loginSubmit");
-	   return;
-   }else{
+    const validationResult = schema.validate({name, email, password});
 
-    var hashedPassword = await bcrypt.hash(password, saltRounds);
+    if (validationResult.error != null) {
+        const errorMessage = validationResult.error.details[0].message;
+        res.render('signup', { errorMessage });
+        return;
+    }
 
-	await userCollection.insertOne({name: name, email: email, password: hashedPassword});
-	console.log("Inserted user");
+    // Check if user already exists in the database
+    const userExists = await userCollection.findOne({ email });
+
+    if (userExists) {
+        const errorMessage = 'User with this email already exists.';
+        res.render('signup', { errorMessage });
+        return;
+    }
+
+    // Hash the password and insert the new user into the database
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    await userCollection.insertOne({ name, email, password: hashedPassword });
+    console.log("Inserted user");
 
     res.redirect("/members");
-}}
 });
+
 
 app.get('/login', (req,res) => {
     var html = `
