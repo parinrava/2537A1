@@ -118,17 +118,23 @@ app.post('/submitUser', async(req,res) => {
     var email = req.body.email;
        
     if (!name) {
-        var htmlText = '<h1>name is missing</h1><';
-        htmlText += "<br><a href='/login'>Try again</a>";
+        var htmlText = '<h1>name is missing</h1>';
+        htmlText += "<br><a href='/signup'>Try again</a>";
        
         // res.setHeader('Content-Type', 'text/html');
            res.send(htmlText);
                 
             } else if (!email) {
-                res.redirect('/signup?missing=email');
+                var htmlText = '<h1>email is missing</h1>';
+        htmlText += "<br><a href='/signup'>Try again</a>";
+       
+           res.send(htmlText);
               
             } else if (!password) {
-                res.redirect('/signup?missing=password');
+                var htmlText = '<h1>password is missing</h1>';
+        htmlText += "<br><a href='/signup'>Try again</a>";      
+           res.send(htmlText);
+           
             } else {
     const schema = Joi.object(
 		{
