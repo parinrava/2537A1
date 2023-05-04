@@ -106,7 +106,7 @@ app.get('/signup', (req,res) => {
     else if (missingName) {
         html += "<br> name is required";
     }
-    else  res.redirect('/members');
+    else res.send(html);
 });
 
 
@@ -145,8 +145,9 @@ app.post('/submitUser', async(req,res) => {
 	await userCollection.insertOne({name: name, email: email, password: hashedPassword});
 	console.log("Inserted user");
 
-    var html = "successfully created user";
-    res.send(html);
+    // var html = "successfully created user";
+    // res.send(html);
+    res.redirect("/members");
 }
 });
 
