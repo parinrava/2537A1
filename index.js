@@ -118,10 +118,11 @@ app.post('/submitUser', async(req,res) => {
     var email = req.body.email;
        
     if (!name) {
-        const htmlText = '<h1>name is missing</h1><';
-
+        const html = '<h1>name is missing</h1><';
         // res.setHeader('Content-Type', 'text/html');
-            res.send(htmlText);
+        html += "<br><a href='/signup'>Try again</a>";
+            res.send(html);
+
                 
             } else if (!email) {
                 res.redirect('/signup?missing=email');
