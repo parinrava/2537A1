@@ -124,14 +124,13 @@ app.post('/submitUser', async (req, res) => {
         const validationResult = schema.validate({name, email, password});
         if (validationResult.error != null) {
             console.log(validationResult.error);
-            res.redirect("/loginSubmit");
+            res.redirect("/Signup");
             return;
         } else {
             var hashedPassword = await bcrypt.hash(password, saltRounds);
 
             await userCollection.insertOne({name: name, email: email, password: hashedPassword});
             console.log("Inserted user");
-
             res.redirect("/members");
         }
     }
@@ -171,7 +170,7 @@ app.post('/logingin', async(req,res) => {
     console.log(result);
 	if (result.length != 1) {
 		console.log("user not found");
-		res.redirect("/loginSubmit");
+		res.redirect("/");
 		return;
 	}
 	if (await bcrypt.compare(password, result[0].password)) {
@@ -225,7 +224,7 @@ app.post('/logout', (req,res) => {
     // You are logged out.
     // `;
     // res.send(html);
-    res.redirect('/login');
+    res.redirect('/');
 });
 app.use(express.static(__dirname + "/public"));
 
